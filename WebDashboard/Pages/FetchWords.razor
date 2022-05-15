@@ -1,0 +1,62 @@
+﻿@page "/fetchwords"
+@using System.Text
+
+@inject IArtifactClient artifactClient
+@inject IWordDbClient wordDbClient
+@inject ILogger<FetchWords> logger
+@inject IJSRuntime JsRuntime
+	
+<PageTitle>Fetch Words</PageTitle>
+
+<EgTable DataContext="@wordItems"
+		 Searchable="true" 
+		 Pageable="true" Total="@totalWords" PageSize="@PageSize"
+		 OnRead="@OnReadAsync">
+	<EgColumn Field="Id" Title="Word" />
+	<EgCommandColumn Title="Action">
+		<EgCommandButton Caption="Details" OnClick="OnDetailsCommandButtonClickAsync" />
+		<EgCommandButton Caption="PDF" OnClick="OnDownloadButtonClickAsync" />
+		<EgCommandButton Caption="HTML" OnClick="OnDownloadButtonClickAsync" />
+	</EgCommandColumn>
+</EgTable>
+
+<WordDetails WordItem=@selectedWordItem />
+
+@code {
+
+	private IReadOnlyList<WordItem>? wordItems { get; set; }
+	private WordItem? selectedWordItem;
+	private int totalWords;
+	private int PageSize = 10;
+
+	protected override async Task OnInitializedAsync()
+	{
+		totalWords = await wordDbClient.GetTotalWordsAsync();
+		wordItems = await Task.Run(() => wordDbClient.GetWords(0, (uint)PageSize).ToList());
+	}
+
+	private async Task OnReadAsync(TableReadEventArgs args)
+	{
+		totalWords = await wordDbClient.GetTotalWordsAsync(args.Filter);
+		wordItems = await Task.Run(() => wordDbClient.GetWords((uint)args.Page-1, (uint)args.PageSize, args.Filter).ToList());
+	}
+
+	public async Task OnDetailsCommandButtonClickAsync(TableCommandButtonArgs args)
+	{
+		await Task.CompletedTask;
+		selectedWordItem = (WordItem)args.Data;
+	}
+
+	public async Task OnDownloadButtonClickAsync(TableCommandButtonArgs args)
+	{
+		var wordItem = (WordItem)args.Data;
+		var docType = args.CommandButton.Caption.ToLower();
+		var fileName = $"{wordItem.Id}.{docType}";
+		var content = await artifactClient.DownloadToAsync(docType, fileName);
+
+		using var fileStream = new MemoryStream(content);
+		using var streamReference = new DotNetStreamReference(stream: fileStream);
+
+		await JsRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, streamReference);
+	}
+}

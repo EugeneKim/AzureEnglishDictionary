@@ -1,0 +1,41 @@
+﻿@page "/addword"
+@using System.Net
+@using Microsoft.Extensions.Options
+@inject IOptions<AppSettings> options
+@inject IJSRuntime JsRuntime
+@inject IWordDbClient wordDbClient
+
+<PageTitle>Add Word</PageTitle>
+
+<EditForm Model="@model" OnValidSubmit="@OnValidSubmit">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+	<div class="form-group">
+		<label for="word">New Word</label>
+		<InputText id="word" @bind-Value="model.Word" class="form-control" />
+	</div>
+
+	<button type="submit" class="btn btn-primary">Add</button>
+</EditForm>
+
+@code {
+	private AddWordModel model = new();
+
+	private async Task OnValidSubmit(EditContext context)
+	{
+		var word = ((AddWordModel)context.Model).Word;
+
+		using var client = new HttpClient();
+		var response = await client.GetAsync($"{options.Value.FunctionAppUri}/api/add?word={word}");
+
+		var message = response.StatusCode switch
+		{
+			HttpStatusCode.Forbidden => $"{word} already exists!",
+			HttpStatusCode.NotFound => $"{word} is not found in the dictionary!",
+			HttpStatusCode.OK => $"{word} was successfully added!",
+			_ => throw new InvalidOperationException($"Server error ({response.StatusCode})")
+		};
+
+		await JsRuntime.InvokeVoidAsync("alert", message);
+	}
+}

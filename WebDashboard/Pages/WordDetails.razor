@@ -1,0 +1,47 @@
+﻿@if (WordItem != null)
+{
+	<div class="card" style="margin-bottom:15px">
+		<div class="card-header fw-bolder">@WordItem.Id</div>
+		<div class="card-body">
+			<table>
+			@foreach (var meaning in @WordItem.Meanings)
+			{
+				<tr>
+					<th><span class="badge bg-primary">@meaning.PartOfSpeech.ToUpper()</span></th>
+				</tr>
+		
+				var i = 1;
+
+				@foreach (var definition in meaning.Definitions)
+				{
+					<tr>
+						<th style="text-align:right"><span class="badge bg-secondary">@(i++)</span></th>
+						<th>@definition.Definition</th>
+					</tr>
+					
+					<tr>
+						<th></th>
+						<td>@{ string.Join(", ", definition.Synonyms); }</td>
+					</tr>
+					<tr>
+						<th></th>
+						<td>@{ string.Join(", ", definition.Antonyms); }</td>
+					</tr>
+		
+					@if (!string.IsNullOrEmpty(definition.Example))
+					{
+						<tr>
+							<th></th>
+							<td><i>@definition.Example</i></td>
+						</tr>
+					}
+				}
+			}
+			</table>
+		</div>
+	</div>
+}
+
+@code {
+	[Parameter] public WordItem? WordItem { get; set; }
+}
